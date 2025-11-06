@@ -1,0 +1,15 @@
+[package]
+name = "mobx_rs"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+default = []
+sync = ["parking_lot"]
+
+[dependencies]
+thiserror = "1.0"
+
+[dependencies.parking_lot]
+version = "0.12"
+optional = true
