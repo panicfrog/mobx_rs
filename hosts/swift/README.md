@@ -34,3 +34,34 @@ swift test
 ```
 
 运行上述命令前请确保已生成 `dist/MobxRS.xcframework`。在 Xcode 中将 `MobxRS` 作为本地 Swift Package 引入即可完成集成。
+
+## 4. Swift 宏用法
+
+为了减少手动注册 observable/computed 的样板代码，`MobxSwift` 提供了宏与运行时约定：
+
+```swift
+final class CounterStore: MobxStore {
+    let runtime = MobxRuntime()
+
+    @MobxObservable(initial: 0)
+    var count: Int
+
+    @MobxComputed(getter: { store in
+        guard let store = store as? CounterStore else { return 0 }
+        return store.count * 2
+    })
+    var doubleCount: Int
+
+    func increment() {
+        #mobxAction(runtime: runtime) {
+            self.count += 1
+        }
+    }
+}
+```
+
+- `@MobxObservable` 会生成隐藏的存储字段与 `MobxObservable<T>`，要求显式 `initial:` 值以及属性类型。
+- `@MobxComputed` 接受一个 `(AnyObject) -> T` 的闭包 `getter`，宏会把当前实例以 `AnyObject` 传入，你可以在闭包内部自行断言为具体类型。
+- `#mobxAction` 是表达式宏，等价于调用 `runtime.runInAction` 并返回闭包结果。
+
+宏假设宿主类型实现了 `MobxStore`（至少暴露 `runtime: MobxRuntime`），目前仅支持 class 类型。

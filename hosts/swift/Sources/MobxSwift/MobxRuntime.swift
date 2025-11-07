@@ -1,5 +1,5 @@
-import MobxRSFFI
 import Darwin
+import MobxRSFFI
 
 public typealias CValue = MobxValue
 
@@ -50,6 +50,7 @@ extension Double: MobxValueConvertible {
 
 public final class MobxRuntime {
     private let handle: mobx_runtime_t
+    var actionDepth: Int = 0
 
     public init() {
         self.handle = mobx_runtime_create()
@@ -102,7 +103,9 @@ public final class MobxRuntime {
     }
 
     @discardableResult
-    public func autorun(name: String = "swift::autorun", _ effect: @escaping () -> Void) -> MobxReaction {
+    public func autorun(name: String = "swift::autorun", _ effect: @escaping () -> Void)
+        -> MobxReaction
+    {
         let box = ReactionBox(runtime: self, effect: effect)
         let pointer = box.retainPointer()
         let handle = withCStringCopy(name) { cName -> mobx_reaction_t in
@@ -118,6 +121,13 @@ public final class MobxRuntime {
             result = body()
         }
         let pointer = box.retainPointer()
+        actionDepth += 1
+        defer {
+            actionDepth -= 1
+            if actionDepth == 0 {
+                flushAfterCallback()
+            }
+        }
         withCStringCopy(name) { cName in
             var desc = mobx_action_desc(name: cName, user_data: pointer, body: actionThunk)
             mobx_run_in_action(self.handle, &desc)
@@ -333,7 +343,6 @@ private func observableReadThunk(_ userData: UnsafeMutableRawPointer?) -> CValue
     guard let userData else { return MobxValue_bool(false) }
     let box = Unmanaged<ObservableBoxBase>.fromOpaque(userData).takeUnretainedValue()
     let value = box.readValue()
-    box.runtime.flushAfterCallback()
     return value
 }
 
@@ -341,14 +350,15 @@ private func observableWriteThunk(_ userData: UnsafeMutableRawPointer?, _ value:
     guard let userData else { return }
     let box = Unmanaged<ObservableBoxBase>.fromOpaque(userData).takeUnretainedValue()
     box.writeValue(value)
-    box.runtime.flushAfterCallback()
+    if box.runtime.actionDepth == 0 {
+        box.runtime.flushAfterCallback()
+    }
 }
 
 private func computedGetterThunk(_ userData: UnsafeMutableRawPointer?) -> CValue {
     guard let userData else { return MobxValue_bool(false) }
     let box = Unmanaged<ComputedBoxBase>.fromOpaque(userData).takeUnretainedValue()
     let value = box.getValue()
-    box.runtime.flushAfterCallback()
     return value
 }
 
@@ -356,21 +366,26 @@ private func computedSetterThunk(_ userData: UnsafeMutableRawPointer?, _ value: 
     guard let userData else { return }
     let box = Unmanaged<ComputedBoxBase>.fromOpaque(userData).takeUnretainedValue()
     box.setValue(value)
-    box.runtime.flushAfterCallback()
+    if box.runtime.actionDepth == 0 {
+        box.runtime.flushAfterCallback()
+    }
 }
 
 private func reactionThunk(_ userData: UnsafeMutableRawPointer?) {
     guard let userData else { return }
     let box = Unmanaged<ReactionBox>.fromOpaque(userData).takeUnretainedValue()
     box.run()
-    box.runtime.flushAfterCallback()
+    // Don't flush if we're inside an action - the action will flush when it completes
+    if box.runtime.actionDepth == 0 {
+        box.runtime.flushAfterCallback()
+    }
 }
 
 private func actionThunk(_ userData: UnsafeMutableRawPointer?) {
     guard let userData else { return }
     let box = Unmanaged<ActionBox>.fromOpaque(userData).takeUnretainedValue()
     box.run()
-    box.runtime.flushAfterCallback()
+    // Flush is now handled by runInAction's defer block
     box.release()
 }
 

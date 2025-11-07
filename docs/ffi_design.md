@@ -226,6 +226,7 @@ typedef enum {
   - 将 Swift 闭包封装成 `mobx_read_cb` / `mobx_write_cb`，并在回调末尾调用 `mobx_runtime_callback_complete`.
   - 提供 `MobxRuntime`、`MobxObservable` 等类型，简化宿主调用.
   - 链接参数默认指向 `../../target/debug`，也可以通过 `MOBX_RS_LIB_DIR` 环境变量覆盖（脚本会在打包时自动指向 `target/release`）。
+- Swift 侧新增 `@MobxObservable` / `@MobxComputed` / `#mobxAction` 宏，基于 `MobxStore` 协议自动注册 observable/computed，并包装 action 逻辑，减少宿主手动管理句柄的样板（`@MobxComputed` 传入 `(AnyObject) -> T` 的 getter 闭包，宏会把当前实例以 `AnyObject` 传入，宿主可根据需要断言成具体类型）。
 - 若只需源码集成，可运行 `scripts/build_rust_artifacts.sh`，它会在 `hosts/swift/Artifacts/` 下产出 macOS / iOS（设备 + 模拟器）的 `libmobx_rs.a` 以及公共头文件，SwiftPM 或 Xcode 只需设置 `MOBX_RS_LIB_DIR` 指向对应目录即可.
 - 若需要 XCFramework，可运行 `scripts/build_swift_xcframework.sh [output.zip]`。脚本会执行 `cargo build --release --features ffi`、`swift build --configuration release`，并调用 `swift package archive` 产出 `MobxRS.xcframework.zip`.
 
