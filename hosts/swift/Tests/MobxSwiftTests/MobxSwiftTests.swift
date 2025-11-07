@@ -136,6 +136,9 @@ final class MobxSwiftTests: XCTestCase {
 
 }
 
+// 全局 runtime 和闭包
+private let runtime = MobxRuntime()
+
 private final class CounterStore: MobxStore {
     let runtime = MobxRuntime()
 
@@ -143,16 +146,17 @@ private final class CounterStore: MobxStore {
         get { _count.wrappedValue }
         set { _count.wrappedValue = newValue }
     }
-    // 使用便捷方法
+    // 使用全局闭包
     lazy var _count = observable(0)
 
     var doubleCount: Int {
         _doubleCount.wrappedValue
     }
-    // 捷方法
-    lazy var _doubleCount = computed { [unowned self] in
-        return self._count.wrappedValue * 2
-    }
+    // 使用全局闭包
+    lazy var _doubleCount = computed(
+        { [unowned self] in
+            return self._count.wrappedValue * 2
+        })
 
     func increment() {
         #mobxAction(runtime: runtime, name: "increment") {

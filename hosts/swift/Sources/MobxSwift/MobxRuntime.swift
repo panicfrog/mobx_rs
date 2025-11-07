@@ -1,3 +1,4 @@
+import Atomics
 import Darwin
 import MobxRSFFI
 
@@ -48,9 +49,9 @@ extension Double: MobxValueConvertible {
 
 // MARK: - Runtime
 
-public final class MobxRuntime {
+public final class MobxRuntime: Sendable {
     private let handle: mobx_runtime_t
-    var actionDepth: Int = 0
+    fileprivate let actionDepth = ManagedAtomic<Int>(0)
 
     public init() {
         self.handle = mobx_runtime_create()
@@ -121,10 +122,10 @@ public final class MobxRuntime {
             result = body()
         }
         let pointer = box.retainPointer()
-        actionDepth += 1
+        actionDepth.wrappingIncrement(ordering: .relaxed)
         defer {
-            actionDepth -= 1
-            if actionDepth == 0 {
+            let newDepth = actionDepth.wrappingDecrementThenLoad(ordering: .relaxed)
+            if newDepth == 0 {
                 flushAfterCallback()
             }
         }
@@ -350,7 +351,7 @@ private func observableWriteThunk(_ userData: UnsafeMutableRawPointer?, _ value:
     guard let userData else { return }
     let box = Unmanaged<ObservableBoxBase>.fromOpaque(userData).takeUnretainedValue()
     box.writeValue(value)
-    if box.runtime.actionDepth == 0 {
+    if box.runtime.actionDepth.load(ordering: .relaxed) == 0 {
         box.runtime.flushAfterCallback()
     }
 }
@@ -366,7 +367,7 @@ private func computedSetterThunk(_ userData: UnsafeMutableRawPointer?, _ value: 
     guard let userData else { return }
     let box = Unmanaged<ComputedBoxBase>.fromOpaque(userData).takeUnretainedValue()
     box.setValue(value)
-    if box.runtime.actionDepth == 0 {
+    if box.runtime.actionDepth.load(ordering: .relaxed) == 0 {
         box.runtime.flushAfterCallback()
     }
 }
@@ -376,7 +377,7 @@ private func reactionThunk(_ userData: UnsafeMutableRawPointer?) {
     let box = Unmanaged<ReactionBox>.fromOpaque(userData).takeUnretainedValue()
     box.run()
     // Don't flush if we're inside an action - the action will flush when it completes
-    if box.runtime.actionDepth == 0 {
+    if box.runtime.actionDepth.load(ordering: .relaxed) == 0 {
         box.runtime.flushAfterCallback()
     }
 }

@@ -1,19 +1,20 @@
 // swift-tools-version: 6.2
 
-import PackageDescription
 import CompilerPluginSupport
+import PackageDescription
 
 let package = Package(
     name: "MobxSwift",
     platforms: [
         .iOS(.v14),
-        .macOS(.v13)
+        .macOS(.v13),
     ],
     products: [
         .library(name: "MobxSwift", targets: ["MobxSwift"])
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-syntax.git", from: "602.0.0")
+        .package(url: "https://github.com/apple/swift-syntax.git", from: "602.0.0"),
+        .package(url: "https://github.com/apple/swift-atomics.git", from: "1.2.0"),
     ],
     targets: [
         .binaryTarget(name: "MobxRSFFI", path: "../../dist/MobxRS.xcframework.zip"),
@@ -22,7 +23,7 @@ let package = Package(
             dependencies: [
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
-                .product(name: "SwiftSyntaxBuilder", package: "swift-syntax")
+                .product(name: "SwiftSyntaxBuilder", package: "swift-syntax"),
             ],
             path: "Sources/MobxSwiftMacros"
         ),
@@ -30,7 +31,8 @@ let package = Package(
             name: "MobxSwift",
             dependencies: [
                 "MobxRSFFI",
-                "MobxSwiftMacros"
+                "MobxSwiftMacros",
+                .product(name: "Atomics", package: "swift-atomics"),
             ],
             path: "Sources/MobxSwift"
         ),
@@ -38,6 +40,6 @@ let package = Package(
             name: "MobxSwiftTests",
             dependencies: ["MobxSwift"],
             path: "Tests/MobxSwiftTests"
-        )
+        ),
     ]
 )

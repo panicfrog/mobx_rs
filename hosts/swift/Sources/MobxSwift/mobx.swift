@@ -11,18 +11,75 @@ extension MobxStore {
     }
 }
 
+/// 创建一个绑定到特定 runtime 的 observable 闭包
+/// 使用方式：
+/// ```
+/// let runtime = MobxRuntime()
+/// let observable = makeObservable(runtime: runtime)
+/// lazy var count = observable(0, nil)
+/// ```
+@inlinable
+public func makeObservable<T>(runtime: MobxRuntime) -> (T, String?) -> MobxSwift.Observable<T> {
+    return { initialValue, name in
+        MobxSwift.Observable(wrappedValue: initialValue, name: name, runtime: runtime)
+    }
+}
+
+/// 创建一个绑定到特定 runtime 的 computed 闭包
+/// 使用方式：
+/// ```
+/// let runtime = MobxRuntime()
+/// let computed = makeComputed(runtime: runtime)
+/// lazy var doubled = computed({ count * 2 }, nil)
+/// ```
+@inlinable
+public func makeComputed<T>(runtime: MobxRuntime) -> (@escaping () -> T, String?) ->
+    MobxSwift.Computed<T>
+{
+    return { getter, name in
+        MobxSwift.Computed(wrappedValue: getter, name: name, runtime: runtime)
+    }
+}
+
+/// 创建一个绑定到特定 runtime 的 autorun 闭包
+/// 使用方式：
+/// ```
+/// let runtime = MobxRuntime()
+/// let autorun = makeAutorun(runtime: runtime)
+/// let reaction = autorun("myEffect", { print("effect") })
+/// ```
+@inlinable
+public func makeAutorun(runtime: MobxRuntime) -> (String, @escaping () -> Void) -> MobxReaction {
+    return { name, effect in
+        runtime.autorun(name: name, effect)
+    }
+}
+
+// 保留旧的函数名作为别名，以便向后兼容
+@inlinable
+public func runtimeObservable<T>(runtime: MobxRuntime) -> (T, String?) -> MobxSwift.Observable<T> {
+    makeObservable(runtime: runtime)
+}
+
+@inlinable
+public func runtimeComputed<T>(runtime: MobxRuntime) -> (@escaping () -> T, String?) ->
+    MobxSwift.Computed<T>
+{
+    makeComputed(runtime: runtime)
+}
+
 // Property Wrapper 的便捷扩展
 extension MobxStore {
     /// 创建一个 Observable property wrapper
     public func observable<T>(_ initialValue: T, name: String? = nil) -> MobxSwift.Observable<T> {
-        MobxSwift.Observable(wrappedValue: initialValue, name: name, runtime: runtime)
+        runtimeObservable(runtime: runtime)(initialValue, name)
     }
 
     /// 创建一个 Computed property wrapper
     public func computed<T>(_ getter: @escaping () -> T, name: String? = nil)
         -> MobxSwift.Computed<T>
     {
-        MobxSwift.Computed(wrappedValue: getter, name: name, runtime: runtime)
+        runtimeComputed(runtime: runtime)(getter, name)
     }
 }
 
