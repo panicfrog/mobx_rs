@@ -1,4 +1,4 @@
-#![forbid(unsafe_code)]
+#![cfg_attr(not(feature = "ffi"), forbid(unsafe_code))]
 
 //! Core crate scaffolding for the MobX-inspired reactivity runtime.
 //!
@@ -6,7 +6,10 @@
 //! required by subsequent runtime components.
 
 pub(crate) mod core;
+#[cfg(feature = "ffi")]
+pub mod ffi;
 pub(crate) mod internal;
+mod macros;
 pub mod observable;
 
 pub use crate::core::action::{

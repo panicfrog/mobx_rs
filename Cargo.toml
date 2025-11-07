@@ -1,11 +1,19 @@
+[workspace]
+members = ["mobx_rs_macros"]
+resolver = "2"
+
 [package]
 name = "mobx_rs"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+crate-type = ["rlib", "cdylib", "staticlib"]
+
 [features]
 default = []
 sync = ["parking_lot"]
+ffi = ["sync"]
 
 [dependencies]
 thiserror = "1.0"

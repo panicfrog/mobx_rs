@@ -1,0 +1,4 @@
+module MobxRSFFI {
+    header "mobx_rs_ffi.h"
+    export *
+}
